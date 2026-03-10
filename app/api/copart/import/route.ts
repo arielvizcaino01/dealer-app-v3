@@ -1,22 +1,27 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { extractCopartData } from '@/lib/copart';
+import { NextResponse } from "next/server";
+import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
+import { extractCopartData } from "@/lib/copart";
 
 export async function POST(request: Request) {
   try {
+    const session = await auth();
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+    }
+
     const body = await request.json();
-    const url = typeof body.url === 'string' ? body.url.trim() : '';
+    const url = typeof body.url === "string" ? body.url.trim() : "";
     const purchasePrice = Number(body.purchasePrice || 0);
 
-    console.log('Import request recibida:', { url, purchasePrice });
-
     if (!url) {
-      return NextResponse.json({ error: 'URL requerida' }, { status: 400 });
+      return NextResponse.json({ error: "URL requerida" }, { status: 400 });
     }
 
     if (!Number.isFinite(purchasePrice) || purchasePrice < 0) {
       return NextResponse.json(
-        { error: 'El total pagado en Copart no es válido' },
+        { error: "El total pagado en Copart no es válido" },
         { status: 400 }
       );
     }
@@ -25,37 +30,38 @@ export async function POST(request: Request) {
 
     if (!copartData.lotNumber) {
       return NextResponse.json(
-        { error: 'No se pudo leer el número de lote de Copart' },
+        { error: "No se pudo leer el número de lote de Copart" },
         { status: 400 }
       );
     }
 
     const safeVin =
-      copartData.vin && copartData.vin.trim() !== ''
+      copartData.vin && copartData.vin.trim() !== ""
         ? copartData.vin.trim()
         : `PENDINGVIN-${copartData.lotNumber}`;
 
     const existingVehicle = await prisma.vehicle.findFirst({
       where: {
+        userId: session.user.id,
         OR: [{ lotNumber: copartData.lotNumber }, { vin: safeVin }],
       },
     });
 
     if (existingVehicle) {
       return NextResponse.json(
-        { error: 'Este vehículo ya está importado' },
+        { error: "Este vehículo ya está importado en tu cuenta" },
         { status: 400 }
       );
     }
 
     const vehicle = await prisma.vehicle.create({
       data: {
-        source: 'COPART',
+        source: "COPART",
         lotNumber: copartData.lotNumber,
         vin: safeVin,
         year: copartData.year || 0,
-        make: copartData.make || 'Unknown',
-        model: copartData.model || 'Unknown',
+        make: copartData.make || "Unknown",
+        model: copartData.model || "Unknown",
         miles: copartData.miles,
         primaryDamage: copartData.primaryDamage || null,
         secondaryDamage: copartData.secondaryDamage || null,
@@ -64,6 +70,7 @@ export async function POST(request: Request) {
         purchasePrice,
         estimatedSalePrice: 0,
         thumbnailUrl: copartData.photos[0] || null,
+        userId: session.user.id,
         photos: {
           create: copartData.photos.map((photoUrl) => ({
             url: photoUrl,
@@ -72,18 +79,16 @@ export async function POST(request: Request) {
       },
     });
 
-    console.log('Vehículo creado desde Copart:', vehicle.id);
-
     return NextResponse.json(vehicle);
   } catch (error) {
-    console.error('Error importando vehículo Copart:', error);
+    console.error("Error importando vehículo Copart:", error);
 
     return NextResponse.json(
       {
         error:
           error instanceof Error
             ? error.message
-            : 'No se pudo importar el vehículo',
+            : "No se pudo importar el vehículo",
       },
       { status: 500 }
     );
