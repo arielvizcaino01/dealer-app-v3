@@ -20,14 +20,25 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const settings = await prisma.businessSettings.upsert({
+    const existingSettings = await prisma.businessSettings.findFirst({
       where: { userId: session.user.id },
-      update: { initialCapital },
-      create: {
-        initialCapital,
-        userId: session.user.id,
-      },
     });
+
+    let settings;
+
+    if (existingSettings) {
+      settings = await prisma.businessSettings.update({
+        where: { id: existingSettings.id },
+        data: { initialCapital },
+      });
+    } else {
+      settings = await prisma.businessSettings.create({
+        data: {
+          initialCapital,
+          userId: session.user.id,
+        },
+      });
+    }
 
     return NextResponse.json(settings);
   } catch (error) {
