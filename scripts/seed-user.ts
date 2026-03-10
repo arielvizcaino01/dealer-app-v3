@@ -1,39 +1,31 @@
-import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcryptjs';
+import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  const email = 'admin@dealerapp.com';
-  const plainPassword = '12345678';
+  const email = "admin@dealerapp.com";
+  const plainPassword = "12345678";
   const hashedPassword = await bcrypt.hash(plainPassword, 10);
 
   const user = await prisma.user.upsert({
     where: { email },
-    update: {},
+    update: {
+      password: hashedPassword,
+      name: "Admin",
+    },
     create: {
-      name: 'Admin',
+      name: "Admin",
       email,
       password: hashedPassword,
     },
   });
 
-  await prisma.vehicle.updateMany({
-    where: { userId: null },
-    data: { userId: user.id },
-  });
-
   const existingSettings = await prisma.businessSettings.findFirst({
-    where: { userId: null },
-    orderBy: { createdAt: 'asc' },
+    where: { userId: user.id },
   });
 
-  if (existingSettings) {
-    await prisma.businessSettings.update({
-      where: { id: existingSettings.id },
-      data: { userId: user.id },
-    });
-  } else {
+  if (!existingSettings) {
     await prisma.businessSettings.create({
       data: {
         initialCapital: 0,
@@ -42,8 +34,12 @@ async function main() {
     });
   }
 
-  console.log('Usuario base creado/asegurado:');
-  console.log({ email, password: plainPassword, userId: user.id });
+  console.log("Usuario base creado/asegurado:");
+  console.log({
+    email,
+    password: plainPassword,
+    userId: user.id,
+  });
 }
 
 main()
