@@ -1,50 +1,92 @@
-import { PrismaClient, ExpenseCategory, VehicleStatus } from '@prisma/client';
+import { PrismaClient, ExpenseCategory, VehicleStatus } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  await prisma.expense.deleteMany();
-  await prisma.vehiclePhoto.deleteMany();
-  await prisma.vehicle.deleteMany();
+  const email = "admin@dealerapp.com";
+  const password = await bcrypt.hash("12345678", 10);
 
-  const vehicle = await prisma.vehicle.create({
-    data: {
-      lotNumber: '87654321',
-      vin: '1HGCM82633A123456',
-      year: 2020,
-      make: 'Honda',
-      model: 'Accord Sport',
-      miles: 52110,
-      primaryDamage: 'Front End',
-      secondaryDamage: 'Minor Dent / Scratches',
-      fuelType: 'Gasoline',
-      engine: '1.5L Turbo',
-      purchasePrice: 5200,
-      estimatedSalePrice: 9800,
-      status: VehicleStatus.IN_REPAIR,
-      thumbnailUrl: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80',
-      photos: {
-        create: [
-          { url: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=1200&q=80', label: 'Subasta frente' },
-          { url: 'https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=1200&q=80', label: 'Subasta lateral' },
-        ],
-      },
-      expenses: {
-        create: [
-          { category: ExpenseCategory.TRANSPORT, description: 'Transporte de subasta al taller', amount: 350 },
-          { category: ExpenseCategory.PARTS, description: 'Bumper delantero', amount: 280 },
-          { category: ExpenseCategory.LABOR, description: 'Mano de obra reparación', amount: 620 },
-        ],
-      },
+  const user = await prisma.user.upsert({
+    where: { email },
+    update: {},
+    create: {
+      name: "Admin",
+      email,
+      password,
     },
   });
 
-  console.log(`Vehículo de ejemplo creado: ${vehicle.make} ${vehicle.model}`);
+  await prisma.businessSettings.upsert({
+    where: { userId: user.id },
+    update: {},
+    create: {
+      userId: user.id,
+      initialCapital: 0,
+    },
+  });
+
+  const existingVehicle = await prisma.vehicle.findFirst({
+    where: {
+      userId: user.id,
+      lotNumber: "demo-lot-001",
+    },
+  });
+
+  if (!existingVehicle) {
+    await prisma.vehicle.create({
+      data: {
+        userId: user.id,
+        source: "MANUAL",
+        lotNumber: "demo-lot-001",
+        vin: "1HGBH41JXMN109186",
+        year: 2018,
+        make: "BMW",
+        model: "330XI",
+        miles: 85432,
+        primaryDamage: "Front End",
+        secondaryDamage: "Minor Dent/Scratches",
+        titleStatus: "Clean Title",
+        fuelType: "Gas",
+        engine: "2.0L 4",
+        purchasePrice: 4500,
+        estimatedSalePrice: 7200,
+        actualSalePrice: null,
+        status: VehicleStatus.PURCHASED,
+        notes: "Vehículo demo para pruebas.",
+        thumbnailUrl: null,
+        photos: {
+          create: [
+            {
+              url: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?q=80&w=1200&auto=format&fit=crop",
+              label: "Foto demo 1",
+            },
+          ],
+        },
+        expenses: {
+          create: [
+            {
+              description: "Transporte inicial",
+              amount: 350,
+              category: ExpenseCategory.TRANSPORT,
+            },
+            {
+              description: "Reparación básica",
+              amount: 600,
+              category: ExpenseCategory.REPAIR,
+            },
+          ],
+        },
+      },
+    });
+  }
+
+  console.log("Seed completado correctamente.");
 }
 
 main()
-  .catch((e) => {
-    console.error(e);
+  .catch((error) => {
+    console.error("Error en seed:", error);
     process.exit(1);
   })
   .finally(async () => {
