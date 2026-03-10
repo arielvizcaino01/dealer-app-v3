@@ -1,8 +1,8 @@
-export const dynamic = 'force-dynamic';
-
+export const dynamic = "force-dynamic";
 
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
+import { auth } from '@/auth';
 import { ExpenseForm } from '@/components/expense-form';
 import { StatusBadge } from '@/components/status-badge';
 import { VehicleNotesForm } from '@/components/vehicle-notes-form';
@@ -16,11 +16,24 @@ import { CollapsibleCard } from '@/components/collapsible-card';
 import { prisma } from '@/lib/prisma';
 import { formatDate, formatMoney } from '@/lib/utils';
 
-export default async function VehicleDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function VehicleDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    notFound();
+  }
+
   const { id } = await params;
 
-  const vehicle = await prisma.vehicle.findUnique({
-    where: { id },
+  const vehicle = await prisma.vehicle.findFirst({
+    where: {
+      id,
+      userId: session.user.id,
+    },
     include: {
       photos: { orderBy: { createdAt: 'asc' } },
       expenses: { orderBy: { createdAt: 'desc' } },

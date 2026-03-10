@@ -1,12 +1,19 @@
-import { NextResponse } from 'next/server';
-import { VehicleStatus } from '@prisma/client';
-import { prisma } from '@/lib/prisma';
+import { NextResponse } from "next/server";
+import { VehicleStatus } from "@prisma/client";
+import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
 
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth();
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
     const { id } = await params;
     const body = await req.json();
 
@@ -26,25 +33,25 @@ export async function PATCH(
       body.titleStatus !== undefined ? String(body.titleStatus).trim() : undefined;
 
     const year =
-      body.year !== undefined && body.year !== ''
+      body.year !== undefined && body.year !== ""
         ? Number(body.year)
         : undefined;
 
     const miles =
       body.miles !== undefined
-        ? body.miles === '' || body.miles === null
+        ? body.miles === "" || body.miles === null
           ? null
           : Number(body.miles)
         : undefined;
 
     const purchasePrice =
-      body.purchasePrice !== undefined && body.purchasePrice !== ''
+      body.purchasePrice !== undefined && body.purchasePrice !== ""
         ? Number(body.purchasePrice)
         : undefined;
 
     const actualSalePrice =
       body.actualSalePrice !== undefined
-        ? body.actualSalePrice === '' || body.actualSalePrice === null
+        ? body.actualSalePrice === "" || body.actualSalePrice === null
           ? null
           : Number(body.actualSalePrice)
         : undefined;
@@ -53,31 +60,31 @@ export async function PATCH(
       body.status !== undefined ? String(body.status) : undefined;
 
     if (lotNumber !== undefined && !lotNumber) {
-      return NextResponse.json({ error: 'El lote es obligatorio' }, { status: 400 });
+      return NextResponse.json({ error: "El lote es obligatorio" }, { status: 400 });
     }
 
     if (vin !== undefined && !vin) {
-      return NextResponse.json({ error: 'El VIN es obligatorio' }, { status: 400 });
+      return NextResponse.json({ error: "El VIN es obligatorio" }, { status: 400 });
     }
 
     if (make !== undefined && !make) {
-      return NextResponse.json({ error: 'La marca es obligatoria' }, { status: 400 });
+      return NextResponse.json({ error: "La marca es obligatoria" }, { status: 400 });
     }
 
     if (model !== undefined && !model) {
-      return NextResponse.json({ error: 'El modelo es obligatorio' }, { status: 400 });
+      return NextResponse.json({ error: "El modelo es obligatorio" }, { status: 400 });
     }
 
     if (year !== undefined && (!Number.isInteger(year) || year < 1900 || year > 2100)) {
-      return NextResponse.json({ error: 'El año no es válido' }, { status: 400 });
+      return NextResponse.json({ error: "El año no es válido" }, { status: 400 });
     }
 
     if (miles !== undefined && miles !== null && (!Number.isFinite(miles) || miles < 0)) {
-      return NextResponse.json({ error: 'Las millas no son válidas' }, { status: 400 });
+      return NextResponse.json({ error: "Las millas no son válidas" }, { status: 400 });
     }
 
     if (purchasePrice !== undefined && (!Number.isFinite(purchasePrice) || purchasePrice < 0)) {
-      return NextResponse.json({ error: 'El precio de compra no es válido' }, { status: 400 });
+      return NextResponse.json({ error: "El precio de compra no es válido" }, { status: 400 });
     }
 
     if (
@@ -85,14 +92,22 @@ export async function PATCH(
       actualSalePrice !== null &&
       (!Number.isFinite(actualSalePrice) || actualSalePrice < 0)
     ) {
-      return NextResponse.json({ error: 'La venta real no es válida' }, { status: 400 });
+      return NextResponse.json({ error: "La venta real no es válida" }, { status: 400 });
     }
 
     if (status !== undefined) {
       const allowedStatuses = Object.values(VehicleStatus);
       if (!allowedStatuses.includes(status as VehicleStatus)) {
-        return NextResponse.json({ error: 'El estado no es válido' }, { status: 400 });
+        return NextResponse.json({ error: "El estado no es válido" }, { status: 400 });
       }
+    }
+
+    const existingVehicle = await prisma.vehicle.findFirst({
+      where: { id, userId: session.user.id },
+    });
+
+    if (!existingVehicle) {
+      return NextResponse.json({ error: "Vehículo no encontrado" }, { status: 404 });
     }
 
     const updatedVehicle = await prisma.vehicle.update({
@@ -113,10 +128,10 @@ export async function PATCH(
 
     return NextResponse.json(updatedVehicle);
   } catch (error) {
-    console.error('Error updating vehicle:', error);
+    console.error("Error updating vehicle:", error);
 
     return NextResponse.json(
-      { error: 'No se pudo actualizar el vehículo' },
+      { error: "No se pudo actualizar el vehículo" },
       { status: 500 }
     );
   }
@@ -127,7 +142,21 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await auth();
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    }
+
     const { id } = await params;
+
+    const existingVehicle = await prisma.vehicle.findFirst({
+      where: { id, userId: session.user.id },
+    });
+
+    if (!existingVehicle) {
+      return NextResponse.json({ error: "Vehículo no encontrado" }, { status: 404 });
+    }
 
     await prisma.vehicle.delete({
       where: { id },
@@ -135,10 +164,10 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting vehicle:', error);
+    console.error("Error deleting vehicle:", error);
 
     return NextResponse.json(
-      { error: 'No se pudo eliminar el vehículo' },
+      { error: "No se pudo eliminar el vehículo" },
       { status: 500 }
     );
   }

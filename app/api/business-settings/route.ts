@@ -1,52 +1,39 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-
-export async function GET() {
-  try {
-    const settings = await prisma.businessSettings.findFirst({
-      orderBy: { createdAt: 'asc' },
-    });
-
-    return NextResponse.json(settings);
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json(
-      { error: 'No se pudo obtener la configuración' },
-      { status: 500 }
-    );
-  }
-}
+import { NextResponse } from "next/server";
+import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
 
 export async function PATCH(request: Request) {
   try {
+    const session = await auth();
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+    }
+
     const body = await request.json();
     const initialCapital = Number(body.initialCapital);
 
-    if (Number.isNaN(initialCapital) || initialCapital < 0) {
+    if (!Number.isFinite(initialCapital) || initialCapital < 0) {
       return NextResponse.json(
-        { error: 'El capital inicial debe ser un número válido' },
+        { error: "El capital inicial no es válido." },
         { status: 400 }
       );
     }
 
-    const existing = await prisma.businessSettings.findFirst({
-      orderBy: { createdAt: 'asc' },
+    const settings = await prisma.businessSettings.upsert({
+      where: { userId: session.user.id },
+      update: { initialCapital },
+      create: {
+        initialCapital,
+        userId: session.user.id,
+      },
     });
-
-    const settings = existing
-      ? await prisma.businessSettings.update({
-          where: { id: existing.id },
-          data: { initialCapital },
-        })
-      : await prisma.businessSettings.create({
-          data: { initialCapital },
-        });
 
     return NextResponse.json(settings);
   } catch (error) {
-    console.error(error);
+    console.error("Error guardando business settings:", error);
     return NextResponse.json(
-      { error: 'No se pudo guardar el capital inicial' },
+      { error: "No se pudo guardar la configuración." },
       { status: 500 }
     );
   }

@@ -1,7 +1,7 @@
+export const dynamic = "force-dynamic";
 
-export const dynamic = 'force-dynamic';
-
-import Link from 'next/link';
+import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   DollarSign,
   Wrench,
@@ -11,33 +11,43 @@ import {
   Banknote,
   PiggyBank,
   ChartNoAxesCombined,
-} from 'lucide-react';
-import { prisma } from '@/lib/prisma';
-import { formatMoney } from '@/lib/utils';
-import { MetricCard } from '@/components/metric-card';
-import { StatusBadge } from '@/components/status-badge';
-import { BusinessSettingsForm } from '@/components/business-settings-form';
+} from "lucide-react";
+import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
+import { formatMoney } from "@/lib/utils";
+import { MetricCard } from "@/components/metric-card";
+import { StatusBadge } from "@/components/status-badge";
+import { BusinessSettingsForm } from "@/components/business-settings-form";
 
 export default async function HomePage() {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
+
+  const userId = session.user.id;
+
   const allVehicles = await prisma.vehicle.findMany({
+    where: { userId },
     include: { expenses: true },
-    orderBy: { createdAt: 'desc' },
+    orderBy: { createdAt: "desc" },
   });
 
   const latestVehicles = allVehicles.slice(0, 5);
 
-  const settings = await prisma.businessSettings.findFirst({
-    orderBy: { createdAt: 'asc' },
+  const settings = await prisma.businessSettings.findUnique({
+    where: { userId },
   });
 
   const initialCapital = settings?.initialCapital ?? 0;
 
   const totalVehicles = allVehicles.length;
-  const inRepair = allVehicles.filter((vehicle) => vehicle.status === 'IN_REPAIR').length;
-  const ready = allVehicles.filter((vehicle) => vehicle.status === 'READY_FOR_SALE').length;
-  const sold = allVehicles.filter((vehicle) => vehicle.status === 'SOLD').length;
-  const purchased = allVehicles.filter((vehicle) => vehicle.status === 'PURCHASED').length;
-  const inTransit = allVehicles.filter((vehicle) => vehicle.status === 'IN_TRANSIT').length;
+  const inRepair = allVehicles.filter((vehicle) => vehicle.status === "IN_REPAIR").length;
+  const ready = allVehicles.filter((vehicle) => vehicle.status === "READY_FOR_SALE").length;
+  const sold = allVehicles.filter((vehicle) => vehicle.status === "SOLD").length;
+  const purchased = allVehicles.filter((vehicle) => vehicle.status === "PURCHASED").length;
+  const inTransit = allVehicles.filter((vehicle) => vehicle.status === "IN_TRANSIT").length;
 
   const totalPurchase = allVehicles.reduce((sum, vehicle) => sum + vehicle.purchasePrice, 0);
 
@@ -55,7 +65,7 @@ export default async function HomePage() {
 
   const estimatedProfit = estimatedInventoryValue - totalInvested;
 
-  const activeVehicles = allVehicles.filter((vehicle) => vehicle.status !== 'SOLD');
+  const activeVehicles = allVehicles.filter((vehicle) => vehicle.status !== "SOLD");
 
   const activeInvested = activeVehicles.reduce((sum, vehicle) => {
     const vehicleExpenses = vehicle.expenses.reduce((acc, expense) => acc + expense.amount, 0);
@@ -76,8 +86,7 @@ export default async function HomePage() {
               Controla tu inventario, tu capital y tu profit desde un solo lugar.
             </h1>
             <p className="mt-4 max-w-2xl text-slate-300">
-              Esta vista ya te muestra métricas reales de tu operación: cuánto dinero has invertido,
-              cuánto capital te queda disponible y cuál es tu profit estimado según todo tu inventario.
+              Esta vista te muestra métricas reales de tu operación con datos solo de tu cuenta.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">

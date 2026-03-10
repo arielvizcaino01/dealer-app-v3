@@ -1,18 +1,29 @@
-import './globals.css';
-import type { Metadata } from 'next';
-import { ReactNode } from 'react';
-import { AppShell } from '@/components/app-shell';
+import type { Metadata } from "next";
+import { SessionProvider } from "next-auth/react";
+import { AppHeader } from "@/components/app-header";
+import "./globals.css";
 
 export const metadata: Metadata = {
-  title: 'Aurijo Auto Import SRL',
-  description: 'Inventario profesional de vehículos con gastos, profit e importación desde Copart.',
+  title: "Dealer App",
+  description: "Sistema de inventario para dealer",
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html lang="es">
-      <body>
-        <AppShell>{children}</AppShell>
+      <body className="min-h-screen bg-slate-950 text-slate-100">
+        <SessionProvider>
+          <div className="min-h-screen">
+            <AppHeader />
+            <main className="mx-auto max-w-7xl px-4 py-6 md:px-6">
+              {children}
+            </main>
+          </div>
+        </SessionProvider>
       </body>
     </html>
   );
