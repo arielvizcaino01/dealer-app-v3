@@ -20,36 +20,46 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+        try {
+          if (!credentials?.email || !credentials?.password) return null;
 
-        const email = String(credentials.email).trim().toLowerCase();
-        const password = String(credentials.password);
+          const email = String(credentials.email).trim().toLowerCase();
+          const password = String(credentials.password);
 
-        const user = await prisma.user.findUnique({
-          where: { email },
-        });
+          const user = await prisma.user.findUnique({
+            where: { email },
+          });
 
-        if (!user || !user.password) return null;
+          if (!user || !user.password) return null;
 
-        const ok = await bcrypt.compare(password, user.password);
-        if (!ok) return null;
+          const ok = await bcrypt.compare(password, user.password);
+          if (!ok) return null;
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name ?? "",
-        };
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name ?? "",
+          };
+        } catch (error) {
+          console.error("Auth authorize error:", error);
+          return null;
+        }
       },
     }),
   ],
   callbacks: {
     async jwt({ token, user }) {
-      if (user) token.id = user.id;
+      if (user && user.id) {
+        token.id = user.id;
+      }
       return token;
     },
     async session({ session, token }) {
-      if (session.user && token.id) {
-        session.user.id = String(token.id);
+      if (session.user) {
+        session.user = {
+          ...session.user,
+          id: token?.id ? String(token.id) : "",
+        };
       }
       return session;
     },
