@@ -1,20 +1,21 @@
 export const dynamic = "force-dynamic";
 
-import Image from 'next/image';
-import { notFound } from 'next/navigation';
-import { auth } from '@/auth';
-import { ExpenseForm } from '@/components/expense-form';
-import { StatusBadge } from '@/components/status-badge';
-import { VehicleNotesForm } from '@/components/vehicle-notes-form';
-import { DeleteExpenseButton } from '@/components/delete-expense-button';
-import { EditExpenseForm } from '@/components/edit-expense-form';
-import { EditVehicleFinancialsForm } from '@/components/edit-vehicle-financials-form';
-import { EditVehicleDetailsForm } from '@/components/edit-vehicle-details-form';
-import { EditVehicleStatusForm } from '@/components/edit-vehicle-status-form';
-import { DeleteVehicleButton } from '@/components/delete-vehicle-button';
-import { CollapsibleCard } from '@/components/collapsible-card';
-import { prisma } from '@/lib/prisma';
-import { formatDate, formatMoney } from '@/lib/utils';
+import Image from "next/image";
+import { notFound } from "next/navigation";
+import { auth } from "@/auth";
+import { ExpenseForm } from "@/components/expense-form";
+import { StatusBadge } from "@/components/status-badge";
+import { VehicleNotesForm } from "@/components/vehicle-notes-form";
+import { DeleteExpenseButton } from "@/components/delete-expense-button";
+import { EditExpenseForm } from "@/components/edit-expense-form";
+import { EditVehicleFinancialsForm } from "@/components/edit-vehicle-financials-form";
+import { EditVehicleDetailsForm } from "@/components/edit-vehicle-details-form";
+import { EditVehicleStatusForm } from "@/components/edit-vehicle-status-form";
+import { DeleteVehicleButton } from "@/components/delete-vehicle-button";
+import { CollapsibleCard } from "@/components/collapsible-card";
+import { VehicleDocumentsManager } from "@/components/vehicle-documents-manager";
+import { prisma } from "@/lib/prisma";
+import { formatDate, formatMoney } from "@/lib/utils";
 
 export default async function VehicleDetailPage({
   params,
@@ -35,17 +36,25 @@ export default async function VehicleDetailPage({
       userId: session.user.id,
     },
     include: {
-      photos: { orderBy: { createdAt: 'asc' } },
-      expenses: { orderBy: { createdAt: 'desc' } },
+      photos: { orderBy: { createdAt: "asc" } },
+      expenses: { orderBy: { createdAt: "desc" } },
+      documents: { orderBy: { createdAt: "desc" } },
     },
   });
 
   if (!vehicle) notFound();
 
-  const totalExpenses = vehicle.expenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const totalExpenses = vehicle.expenses.reduce(
+    (sum, expense) => sum + expense.amount,
+    0
+  );
+
   const totalCost = vehicle.purchasePrice + totalExpenses;
+
   const actualProfit =
-    vehicle.actualSalePrice != null ? vehicle.actualSalePrice - totalCost : null;
+    vehicle.actualSalePrice != null
+      ? vehicle.actualSalePrice - totalCost
+      : null;
 
   return (
     <div className="space-y-6">
@@ -57,9 +66,11 @@ export default async function VehicleDetailPage({
                 <p className="text-sm text-soft">
                   {vehicle.source} · Lote {vehicle.lotNumber}
                 </p>
+
                 <h1 className="mt-2 text-3xl font-bold">
                   {vehicle.year} {vehicle.make} {vehicle.model}
                 </h1>
+
                 <p className="mt-2 text-slate-400">VIN {vehicle.vin}</p>
               </div>
 
@@ -94,12 +105,14 @@ export default async function VehicleDetailPage({
 
               <div className="rounded-2xl bg-white/5 p-4">
                 <p className="label">Millas</p>
-                <p className="value">{vehicle.miles?.toLocaleString() || '-'}</p>
+                <p className="value">
+                  {vehicle.miles?.toLocaleString() || "-"}
+                </p>
               </div>
 
               <div className="rounded-2xl bg-white/5 p-4">
                 <p className="label">Título</p>
-                <p className="value">{vehicle.titleStatus || '-'}</p>
+                <p className="value">{vehicle.titleStatus || "-"}</p>
               </div>
 
               <div className="rounded-2xl bg-white/5 p-4">
@@ -109,7 +122,10 @@ export default async function VehicleDetailPage({
             </div>
 
             <div className="mt-6 rounded-2xl bg-white/5 p-4">
-              <VehicleNotesForm vehicleId={vehicle.id} initialNotes={vehicle.notes} />
+              <VehicleNotesForm
+                vehicleId={vehicle.id}
+                initialNotes={vehicle.notes}
+              />
             </div>
           </div>
 
@@ -172,22 +188,23 @@ export default async function VehicleDetailPage({
                 <strong>
                   {vehicle.actualSalePrice != null
                     ? formatMoney(vehicle.actualSalePrice)
-                    : '-'}
+                    : "-"}
                 </strong>
               </div>
 
               <div className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3">
                 <span>Profit real</span>
+
                 <strong
                   className={
                     actualProfit != null
                       ? actualProfit >= 0
-                        ? 'text-emerald-300'
-                        : 'text-rose-300'
-                      : ''
+                        ? "text-emerald-300"
+                        : "text-rose-300"
+                      : ""
                   }
                 >
-                  {actualProfit != null ? formatMoney(actualProfit) : '-'}
+                  {actualProfit != null ? formatMoney(actualProfit) : "-"}
                 </strong>
               </div>
             </div>
@@ -208,8 +225,10 @@ export default async function VehicleDetailPage({
 
           <div className="card p-6">
             <h2 className="text-xl font-semibold">Zona de peligro</h2>
+
             <p className="mt-2 text-sm text-slate-400">
-              Eliminar este vehículo borrará también sus gastos y fotos asociadas.
+              Eliminar este vehículo borrará también sus gastos, fotos y
+              documentos asociados.
             </p>
 
             <div className="mt-5">
@@ -231,27 +250,53 @@ export default async function VehicleDetailPage({
               <div className="relative aspect-[4/3]">
                 <Image
                   src={photo.url}
-                  alt={photo.label || 'Foto de vehículo'}
+                  alt={photo.label || "Foto de vehículo"}
                   fill
                   className="object-cover"
                 />
               </div>
 
               <div className="px-4 py-3 text-sm text-slate-300">
-                {photo.label || 'Foto del vehículo'}
+                {photo.label || "Foto del vehículo"}
               </div>
             </div>
           ))}
 
           {vehicle.photos.length === 0 && (
-            <p className="text-slate-400">No hay fotos cargadas para este vehículo.</p>
+            <p className="text-slate-400">
+              No hay fotos cargadas para este vehículo.
+            </p>
           )}
+        </div>
+      </section>
+
+      <section className="card p-6">
+        <h2 className="text-2xl font-semibold">Documentos del vehículo</h2>
+
+        <p className="mt-2 text-sm text-slate-400">
+          Guarda título, impuestos, barco, transporte, facturas y otros
+          archivos.
+        </p>
+
+        <div className="mt-5">
+          <VehicleDocumentsManager
+            vehicleId={vehicle.id}
+            documents={vehicle.documents.map((document) => ({
+              id: document.id,
+              type: document.type,
+              fileName: document.fileName,
+              fileUrl: document.fileUrl,
+              mimeType: document.mimeType,
+              createdAt: document.createdAt.toISOString(),
+            }))}
+          />
         </div>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[1fr_1.1fr]">
         <div className="card p-6">
           <h2 className="text-2xl font-semibold">Agregar gasto</h2>
+
           <p className="mt-2 text-sm text-slate-400">
             Transporte, piezas, mano de obra, impuestos y más.
           </p>
@@ -266,10 +311,16 @@ export default async function VehicleDetailPage({
 
           <div className="mt-5 space-y-3">
             {vehicle.expenses.map((expense) => (
-              <div key={expense.id} className="rounded-2xl bg-white/5 px-4 py-3">
+              <div
+                key={expense.id}
+                className="rounded-2xl bg-white/5 px-4 py-3"
+              >
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="font-medium text-white">{expense.description}</p>
+                    <p className="font-medium text-white">
+                      {expense.description}
+                    </p>
+
                     <p className="text-xs uppercase tracking-wide text-slate-400">
                       {expense.category} · {formatDate(expense.createdAt)}
                     </p>
@@ -294,7 +345,9 @@ export default async function VehicleDetailPage({
             ))}
 
             {vehicle.expenses.length === 0 && (
-              <p className="text-slate-400">Todavía no hay gastos cargados.</p>
+              <p className="text-slate-400">
+                Todavía no hay gastos cargados.
+              </p>
             )}
           </div>
         </div>

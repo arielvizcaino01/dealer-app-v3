@@ -25,75 +25,118 @@ enum ExpenseCategory {
   OTHER
 }
 
+enum VehicleDocumentType {
+  TITLE_PHOTO
+  TAX_PAYMENT
+  SHIP_PAYMENT
+  TRANSPORT_RECEIPT
+  REPAIR_INVOICE
+  OTHER
+}
+
 model User {
-  id               String             @id @default(cuid())
-  name             String?
-  email            String             @unique
-  emailVerified    DateTime?
-  image            String?
-  password         String?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
   accounts         Account[]
   sessions         Session[]
   vehicles         Vehicle[]
   businessSettings BusinessSettings[]
+  documents        VehicleDocument[]
 }
 
 model Vehicle {
-  id                 String         @id @default(cuid())
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
-  source             String         @default("COPART")
-  lotNumber          String         @unique
-  vin                String         @unique
-  year               Int
-  make               String
-  model              String
-  miles              Int?
-  primaryDamage      String?
-  secondaryDamage    String?
-  titleStatus        String?
-  fuelType           String?
-  engine             String?
-  purchasePrice      Float          @default(0)
-  estimatedSalePrice Float          @default(0)
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  source    String @default("COPART")
+  lotNumber String @unique
+  vin       String @unique
+
+  year  Int
+  make  String
+  model String
+  miles Int?
+
+  primaryDamage   String?
+  secondaryDamage String?
+  titleStatus     String?
+
+  fuelType String?
+  engine   String?
+
+  purchasePrice      Float  @default(0)
+  estimatedSalePrice Float  @default(0)
   actualSalePrice    Float?
-  status             VehicleStatus  @default(PURCHASED)
-  notes              String?
-  thumbnailUrl       String?
-  photos             VehiclePhoto[]
-  expenses           Expense[]
-  userId             String
-  user               User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  status VehicleStatus @default(PURCHASED)
+
+  notes        String?
+  thumbnailUrl String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  photos    VehiclePhoto[]
+  expenses  Expense[]
+  documents VehicleDocument[]
 }
 
 model VehiclePhoto {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
-  url       String
-  label     String?
+
+  url   String
+  label String?
+
   vehicleId String
-  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+}
+
+model VehicleDocument {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  type     VehicleDocumentType
+  fileName String
+  fileUrl  String
+  mimeType String?
+
+  vehicleId String
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Expense {
-  id          String          @id @default(cuid())
-  createdAt   DateTime        @default(now())
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
   description String
   amount      Float
   category    ExpenseCategory
-  vehicleId   String
-  vehicle     Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  vehicleId String
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
 }
 
 model BusinessSettings {
-  id             String   @id @default(cuid())
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  initialCapital Float    @default(0)
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  initialCapital Float @default(0)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId])
 }
@@ -103,14 +146,16 @@ model Account {
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String?
-  access_token      String?
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String?
-  session_state     String?
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  refresh_token String?
+  access_token  String?
+  expires_at    Int?
+  token_type    String?
+  scope         String?
+  id_token      String?
+  session_state String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([provider, providerAccountId])
 }
@@ -119,7 +164,8 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([sessionToken])
 }
